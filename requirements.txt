@@ -1,0 +1,4 @@
+elara==0.5.5
+python-dotenv==1.0.0
+requests==2.29.0
+tqdm==4.64.0
