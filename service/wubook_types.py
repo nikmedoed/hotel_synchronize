@@ -342,8 +342,14 @@ City tax value calculated following the rule set on WooDoo, not included in the 
     deleted_advance: str = None
     discount: dict[str, Union[int, str]] = None
 
+    @property
+    def id(self):
+        return self.reservation_code
+
     def __init__(self, **kwargs):
         field_names = {field.name for field in fields(self)}
+        for key in field_names:
+            setattr(self, key, None)
         for key, value in kwargs.items():
             if key in field_names:
                 if key in {'date_arrival', 'date_departure'}:
@@ -372,7 +378,7 @@ City tax value calculated following the rule set on WooDoo, not included in the 
         )
 
     def __str__(self) -> str:
-        keys = ["date_arrival", "date_departure", "customer_name",
+        keys = ["id", "date_arrival", "date_departure", "customer_name",
                 "customer_surname", "customer_phone", "customer_mail"]
         values = []
         for key in keys:

@@ -1,12 +1,12 @@
 import pandas as pd
 from utils.loadenv import bnovo_client, wubook_clients, bnovo_pms_client
-from service.wubook import WuBookBooking
 import datetime
 from itertools import chain
 from dataclasses import asdict
+from utils.actual_bookings import get_actual_wubook_bookings, get_actual_bnovo_bookings
 
 bnovo_rooms = bnovo_client.get_roomtypes()
-bnovo_rooms =[ v for k, v in bnovo_rooms.items()]
+bnovo_rooms = [v for k, v in bnovo_rooms.items()]
 df = pd.DataFrame(bnovo_rooms)
 df.T.to_excel('bnovo_rooms.xlsx')
 
@@ -14,20 +14,14 @@ bnovo_addons = bnovo_client.get_addons()
 df = pd.DataFrame(bnovo_addons)
 df.to_excel('bnovo_addons.xlsx')
 
-bnovo_bookings = bnovo_pms_client.get_bookings(
-    departure_from=datetime.datetime.now().date()
-)
+bnovo_bookings = get_actual_bnovo_bookings().values()
 df = pd.DataFrame(bnovo_bookings)
 df.to_excel('bnovo_bookings.xlsx')
 
-
 date = datetime.datetime.now().date() + datetime.timedelta(days=30)
-wubook_bookings: dict[int, WuBookBooking] = {i.reservation_code: i for i in chain(*[
-    c.bookings(
-        dto=date
-    ) + c.new_bookings(mark=0)
-    for c in wubook_clients])}
-df = pd.DataFrame([asdict(w) for w in wubook_bookings.values()])
+wubook_bookings = get_actual_wubook_bookings()
+df = pd.DataFrame(wubook_bookings)
+# df = pd.DataFrame([asdict(w) for w in wubook_bookings.values()])
 df.to_excel('wubook_bookings.xlsx')
 
 bnovo_plans = bnovo_client.get_plans()
@@ -38,3 +32,7 @@ bnovo_bookings = bnovo_client.get_bookings(
 )
 df = pd.DataFrame(bnovo_bookings)
 df.to_excel('bnovo_module_bookings.xlsx')
+
+wubook_rooms = chain(*[c.rooms() for c in wubook_clients])
+df = pd.DataFrame(wubook_rooms)
+df.to_excel('wubook_rooms.xlsx')

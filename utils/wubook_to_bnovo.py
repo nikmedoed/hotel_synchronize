@@ -21,8 +21,9 @@ STATUS_WUBOOK_TO_BNOVO = {
 
 def wubook_to_bnovo(book: WuBookBooking, room: dict):
     # book.arrival_hour не куда указать /
+    # А оно ещё и не всегда, иногда просто --
     # Если час заезда меньше, чем 15:00 - в биново ответ на ранний заезд 1
-    if book.status in {3, 5, 6}:
+    if book.status in WUBOOK_CANCELLED_STATES:
         # 1: confirmed
         # 2: waiting for approval (WooDoo Online Reception only)
         # 3: refused (WooDoo Online Reception only)
@@ -108,8 +109,10 @@ def wubook_to_bnovo(book: WuBookBooking, room: dict):
         guarantee_sum=book.payment_gateway_fee or 0,
         arrival=bnovo_date_format(arrival),
         departure=bnovo_date_format(departure),
-        name=f"Импорт ВУБУК {book.customer_name}" if DEBUG_RUNNING else book.customer_name,
-        surname=f"TEST {book.customer_surname}" if DEBUG_RUNNING else book.customer_surname,
+        # name=f"Импорт ВУБУК {book.customer_name}" if DEBUG_RUNNING else book.customer_name,
+        # surname=f"TEST {book.customer_surname}" if DEBUG_RUNNING else book.customer_surname,
+        name=book.customer_name,
+        surname=book.customer_surname,
         email=book.customer_mail,
         phone=book.customer_phone,
         lang=book.customer_language_iso,
@@ -157,6 +160,9 @@ def wubook_to_bnovo_new_record(room: dict, book: WuBookBooking):
         if err and type(err) == list:
             if err[0].get('type') == 'isAvailable':
                 book.cancel(reason="Извините, даты уже заняты", send_voucher=1)
+                logging.warning(f"wubook {book_id} cancelled :: "
+                                f"в биново заняты даты {book.date_arrival} {book.date_departure} "
+                                f"room: {room.get('name')}")
             mes = err[0].get('message')
             if mes:
                 e = f"{mes}, wubook: {book}, room: {room['name']}"

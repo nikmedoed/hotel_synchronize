@@ -5,7 +5,8 @@ from typing import Union
 from utils.loadenv import DEBUG_RUNNING
 from utils.database import BNOVO_TAG, WUBOOK_TAG, synchrobase, key
 from service.bnovo_types import BnovoPMSBooking
-from service.wubook_types import WuBookRoom, WuBookCustomer, WuBookGuests, WuBookBooking, WUBOOK_CANCELLED_STATES
+from service.wubook_types import WuBookRoom, WuBookCustomer, WuBookGuests, \
+    WuBookBooking, WUBOOK_CANCELLED_STATES
 
 # waiting for approval reservation (status=2) or a confirmed one (status=1)
 STATUS_BNOVO_TO_WUBOOK = {
@@ -22,7 +23,7 @@ def bnovo_to_wubook(book: BnovoPMSBooking, wub_room: WuBookRoom):
     if not wub_room:
         if not DEBUG_RUNNING:
             logging.warning(f"Нет комнаты '{book.initial_room_type_name}' "
-                        f"в словаре сопоставлений (в WuBook), пропускаем")
+                            f"в словаре сопоставлений (в WuBook), пропускаем")
         return
     if book.status_id in {2, 4}:
         return
@@ -71,9 +72,16 @@ def update_wubook_copy(wubook: WuBookBooking, original: BnovoPMSBooking,
         room = rooms_origin_to_copy.get(original.initial_room_type_name)
         if wubook.date_departure < datetime.datetime.now():
             return
-        if original.arrival.date() != wubook.date_arrival.date() or \
-                original.departure.date() != wubook.date_departure.date() or \
-                (room and room.id != wubook.rooms):
+
+        if original.arrival and (
+                (original.arrival.date() >= datetime.datetime.now().date()
+                 and
+                 original.arrival.date() != wubook.date_arrival.date())
+                or
+                original.departure.date() != wubook.date_departure.date()
+                or
+                (room and room.id != wubook.rooms)
+        ):
             if wubook.status not in WUBOOK_CANCELLED_STATES:
                 wubook.cancel(reason='bnovo data update')
                 synchrobase.rem(key(WUBOOK_TAG, rcode))
@@ -98,6 +106,6 @@ def bnovo_to_wubook_new_record(wub_room: WuBookRoom, book: BnovoPMSBooking):
     try:
         new_booking = bnovo_to_wubook(book, wub_room)
         if new_booking:
-            synchrobase.set(key(WUBOOK_TAG, new_booking), book.id)
+            synchrobase.set(key(WUBOOK_TAG, new_booking), book.id_number)
     except Exception as e:
         logging.error(f"Ошибка бронирования wubook :: {BNOVO_TAG}: {book.id}, err: {e}")

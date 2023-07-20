@@ -75,7 +75,7 @@ class BnovoAPI:
 
             if response.status_code == 429:
                 st = 30 * attempt
-                logging.info(f"Bnovo код 429, спим: {st} сек")
+                logging.warning(f"Bnovo код 429, спим: {st} сек")
                 time.sleep(st)
             else:
                 response = response.json()

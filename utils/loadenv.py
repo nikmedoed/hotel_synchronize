@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from service.bnovo import BnovoAPI
 from service.wubook import WuBook
-from service.BnovoPMS import BnovoPMSapi
+from service.bnovoPMS import BnovoPMSapi
 from utils.logger import TelegramHandler
 import logging
 
@@ -33,7 +33,7 @@ for code in WUBOOK_USER['lcodes'].split(','):
 bnovo_client = BnovoAPI(**RESERVATIONSTEPS_USER)
 wubook_clients = [WuBook(**wu) for wu in WUBOOK_USERS]
 bnovo_pms_client = BnovoPMSapi(**PMS_USER)
-DEBUG_RUNNING = bool(os.getenv('DEBUG_RUNNING'))
+DEBUG_RUNNING = os.getenv('DEBUG_RUNNING')== 'True'
 
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 CHAT_IDS = os.getenv('CHAT_IDS').split(',')

@@ -376,7 +376,8 @@ unread: Прочитана бронь или нет
     surname: str = None
     unread: str = None
 
-    def get_id_number(self):
+    @property
+    def id_number(self):
         if self.extra:
             i = self.extra.get('bnovobook_group_main_booking_number')
             if i:
@@ -399,3 +400,15 @@ unread: Прочитана бронь или нет
             booking_number=self.link_id,
             new_status_id=status.value if type(status) == BnovoStatuses else status
         )
+
+    def __str__(self) -> str:
+        keys = ["id", "arrival", "departure", "name",
+                "surname", "phone", "email"]
+        values = []
+        for key in keys:
+            value = getattr(self, key, "")
+            if isinstance(value, datetime.datetime):
+                value = value.strftime("%d/%m/%Y")
+            values.append(str(value))
+
+        return ", ".join(f"{key}: {value}" for key, value in zip(keys, values))

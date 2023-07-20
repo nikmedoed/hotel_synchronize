@@ -1,9 +1,5 @@
-from utils.loadenv import bnovo_client, wubook_clients, bnovo_pms_client, DEBUG_RUNNING
-from service.wubook import WuBookRoom, WuBookBooking
-from service.bnovo import BnovoPMSBooking
-import datetime
+from service.wubook import WuBookRoom
 from itertools import chain
-from typing import Union
 import logging
 from time import sleep
 
@@ -11,6 +7,9 @@ from utils.bnovo_to_wubook import update_wubook_copy, bnovo_to_wubook_new_record
 from utils.database import BNOVO_TAG, WUBOOK_TAG
 from utils.updates import split_dict, make_updates
 from utils.wubook_to_bnovo import update_bnovo_copy, wubook_to_bnovo_new_record
+from utils.actual_bookings import get_actual_wubook_bookings, get_actual_bnovo_bookings, count_wubook_cancelled, \
+    count_bnovo_cancelled
+from utils.loadenv import bnovo_client, wubook_clients, DEBUG_RUNNING
 
 
 def get_rooms_comparison():
@@ -18,9 +17,9 @@ def get_rooms_comparison():
     wubook_rooms = chain(*[c.rooms() for c in wubook_clients])
     bnovo_rooms = bnovo_client.get_roomtypes()
 
-    if DEBUG_RUNNING:
-        bnovo_rooms = {k: v for k, v in bnovo_rooms.items() if 'Тестовая' in v['name']}
-        wubook_rooms = [room for room in wubook_rooms if 'Тестовая' in room.name]
+    # if DEBUG_RUNNING:
+    #     bnovo_rooms = {k: v for k, v in bnovo_rooms.items() if 'Тестовая' in v['name']}
+    #     wubook_rooms = [room for room in wubook_rooms if 'Тестовая' in room.name]
 
     tempdict: dict[str, WuBookRoom] = {room.name: room for room in wubook_rooms}
     roomid_bnovo_to_wubook = {}
@@ -39,21 +38,12 @@ def get_rooms_comparison():
 
 def synchroiteration(roomid_bnovo_to_wubook, roomid_wubook_to_binovo):
     # Собираем брони для обработки, остальные пропустятся
-    now = datetime.datetime.now()
-    bnovo_bookings: dict[Union[int, str], BnovoPMSBooking] = {
-        i.get_id_number(): i for i in bnovo_pms_client.get_bookings(
-            departure_from=datetime.datetime.now().date()
-        ) if i.departure >= now}
-    # Проблемы вубук:
-    # - ограничение в 120 записей
-    # - кривые фильтры, нет фильтров по выезду
-    # Поэтому запросить все актуальные записи непросто,
-    # из биново будем стучать по базе, а в вубук плясать от изменений
-    wubook_bookings: dict[int, WuBookBooking] = {i.reservation_code: i for i in chain(*[
-        c.bookings(
-            dfrom=datetime.datetime.now().date() - datetime.timedelta(days=10)
-        ) + c.new_bookings()
-        for c in wubook_clients])}
+    bnovo_bookings = get_actual_bnovo_bookings()
+    logging.info(f"bnovo collected {len(bnovo_bookings)} booking, "
+                 f"is cancelled {count_bnovo_cancelled(bnovo_bookings.values())}")
+    wubook_bookings = get_actual_wubook_bookings()
+    logging.info(f"wubook collected {len(wubook_bookings)} booking, "
+                 f"is cancelled {count_wubook_cancelled(wubook_bookings.values())}")
 
     # Step 1: Делим записи на те, что помечены в базе (по ключу есть ид оригинала) и оригинальные
     wubook_bookings_from_bnovo = split_dict(wubook_bookings, WUBOOK_TAG)
@@ -76,22 +66,35 @@ def synchroiteration(roomid_bnovo_to_wubook, roomid_wubook_to_binovo):
 
 
 if __name__ == "__main__":
+    SLEEP_TIME = 60
     # Получаем сопоставления. Для каких номеров нет сопоставлений, пропустим
     roomid_bnovo_to_wubook, roomid_wubook_to_binovo = get_rooms_comparison()
 
     while 1:
-        logging.debug("New iteration start")
+        logging.info("New synchroiteration start")
         if not DEBUG_RUNNING:
             try:
                 synchroiteration(roomid_bnovo_to_wubook, roomid_wubook_to_binovo)
             except Exception as e:
                 mes = str(e)
+                sleep_time = 0
                 if "More than 288" in mes:
-                    logging.error(f"Синхронизация не получилась, спим 6 мин {mes}")
-                    sleep(300)
+                    sleep_time = 300
+                if "in the last 3600 seconds" in mes:
+                    sleep_time = 3300
+                if sleep_time:
+                    logging.error(f"Синхронизация не получилась, ограничения вубук. "
+                                  f"Спим {sleep_time / 60:.1f} мин {mes}")
+                    sleep(sleep_time)
                 else:
-                    logging.error(f"Непредвиденная ошибка синхронизации {mes}\n{e.with_traceback()}")
-            sleep(180)
+                    logging.error(f"Непредвиденная ошибка синхронизации {mes}")
+                    try:
+                        logging.error(e.with_traceback())
+                    except:
+                        print("Не получилось вывести traceeback")
+
+            logging.info(f"iteration end, sleep {SLEEP_TIME} sec")
+            sleep(SLEEP_TIME)
         else:
             synchroiteration(roomid_bnovo_to_wubook, roomid_wubook_to_binovo)
             sleep(30)

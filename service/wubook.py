@@ -2,6 +2,8 @@ import xmlrpc.client
 from .wubook_types import *
 import datetime
 from dataclasses import asdict
+import inspect
+from utils.cache import cache
 
 
 class WuBook:
@@ -13,6 +15,12 @@ class WuBook:
 
     def __response_procc(self, response, cls=None):
         res, response = response
+
+        with open('wubook_req_log.txt', 'a', encoding='utf8') as f:
+            current_frame = inspect.currentframe()
+            caller_function = current_frame.f_back.f_code.co_name
+            f.write(f"{datetime.datetime.now()}\t{self.lcode}\t{res}\t{caller_function}\n")
+
         if res == 0:
             if type(response) == str:
                 return response
@@ -22,7 +30,7 @@ class WuBook:
                 return cls(**response.set_object(self))
             return response
         else:
-            raise Exception(f"{res}: {response}")
+            raise Exception(f"{res}:: {response}")
 
     @property
     def __get_auth(self):
@@ -41,8 +49,13 @@ class WuBook:
         return self.__response_procc(response)
 
     def booking(self, rcode, ancillary=False):
-        response = self.server.fetch_booking(*self.__get_auth, rcode, ancillary)
-        return self.__response_procc(response, WuBookBooking)
+        key = f"{self.lcode}:{rcode}"
+        item = cache.get(key)
+        if not item:
+            response = self.server.fetch_booking(*self.__get_auth, rcode, ancillary)
+            item = self.__response_procc(response, WuBookBooking)
+            cache.set(key, item)
+        return item
 
     def new_bookings(self, ancillary=0, mark=1):
         response = self.server.fetch_new_bookings(*self.__get_auth, ancillary, mark)
@@ -64,7 +77,7 @@ class WuBook:
         response = self.server.fetch_bookings(*self.__get_auth, dfrom, dto, oncreated, ancillary)
         return self.__response_procc(response, WuBookBooking)
 
-    def bookings_codes(self, dfrom: datetime.date, dto: datetime.date, oncreated=1):
+    def bookings_codes(self, dfrom: datetime.date, dto: datetime.date, oncreated=0):
         """
         вернуть список бронирований по фильтрам
 

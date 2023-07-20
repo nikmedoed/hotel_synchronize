@@ -2,13 +2,12 @@ from utils.database import synchrobase, key
 
 
 def split_dict(bookings, tag):
-    # Удалит из списка брони, что были в базе, вернёт список удалённого
-    result = {}
+    # Удалит из списка брони, что были в базе, вернёт список дубликатов из другой системы
+    originals = {}
     for book_key in set(bookings.keys()):
-        if synchrobase.get(key(tag, book_key)):
-            result[book_key] = bookings[book_key]
-            del bookings[book_key]
-    return result
+        if synchrobase.exists(key(tag, book_key)):
+            originals[book_key] = bookings.pop(book_key)
+    return originals
 
 
 def make_updates(bookings, bookins_original, tag, function, rooms_copy_to_origin):
