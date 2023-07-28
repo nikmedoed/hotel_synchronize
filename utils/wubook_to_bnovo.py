@@ -45,10 +45,7 @@ def wubook_to_bnovo(book: WuBookBooking, room: dict):
     date_diff = (departure - arrival).days
     if date_diff == 0:
         return
-    dayprices = book.dayprices.popitem()[1]
-    dayprices = dayprices[-date_diff:]
     book_id = book.reservation_code
-    room_id = room['id']
 
     addons_info = []
     services = []
@@ -64,7 +61,7 @@ def wubook_to_bnovo(book: WuBookBooking, room: dict):
             logging.warning(f"Не найдено сопоставление для дополнительной услуги {name}")
             text += " - нет сопоставления"
         else:
-            ldp = len(dayprices)
+            ldp = date_diff
             if per:
                 dayprice = price / ldp
                 day_prices = {date: {"count": quant, "price": dayprice} for date in bnovo_dates(arrival, 1, ldp + 1)}
@@ -85,23 +82,21 @@ def wubook_to_bnovo(book: WuBookBooking, room: dict):
     if addons_info:
         addons_info = f"\n\nДополнительные услуги:\n{addons_info}"
 
+    room_id = room['id']
+    dayprices = book.dayprices.popitem()[1]
+    dayprices = dayprices[-date_diff:]
+
     room_types = {room_id: BnovoRoomTypes(
         count=1,
         prices={bnovo_date_format(arrival + datetime.timedelta(days=n)): i for n, i in
                 enumerate(dayprices)},
         room_type_services=[{"services": services}]  # количество services == count
     )}
-    # extra = json.dumps({
-    #     "Loyalty": {
-    #         "flags": ["Loyalty->flags"],
-    #         "loyalty_id": "Loyalty->flags"
-    #     },
-    #     "Ota info": {
-    #         "id": "sdfsdfdsfdsfd",
-    #         "Hotel id": "Ota info->Hotel id",
-    #         "Rate name": "Ota info->Rate name"
-    #     }
-    # })
+
+    # room_types = {}
+    # for room in
+
+
     extra = ""
     new = BnovoNewBooking(
         plan_id=153650,  # 157122,

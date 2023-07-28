@@ -20,8 +20,7 @@ df.to_excel('bnovo_bookings.xlsx')
 
 date = datetime.datetime.now().date() + datetime.timedelta(days=30)
 wubook_bookings = get_actual_wubook_bookings()
-df = pd.DataFrame(wubook_bookings)
-# df = pd.DataFrame([asdict(w) for w in wubook_bookings.values()])
+df = pd.DataFrame([asdict(w) for w in wubook_bookings.values()])
 df.to_excel('wubook_bookings.xlsx')
 
 bnovo_plans = bnovo_client.get_plans()
