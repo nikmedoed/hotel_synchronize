@@ -329,13 +329,13 @@ City tax value calculated following the rule set on WooDoo, not included in the 
     addons_list: list
     special_offer: str
     device: WuBookDevice
-    dayprices: dict[str, list[float]]
     booked_rooms: dict  # тут какая-то дичь
     channel_data: dict
     rooms_occupancies: list
     boards: dict
     tboard: float
     currency: str
+    dayprices: dict[str, list[float]]
     deleted_at: str = None
     deleted_at_time: str = None
     deleted_from: str = None
@@ -376,6 +376,12 @@ City tax value calculated following the rule set on WooDoo, not included in the 
             self.reservation_code,
             reason, send_voucher
         )
+
+    def update(self):
+        if not self.dayprices:
+            all_data = self.object_server.booking(self.reservation_code)
+            self.__dict__.update(all_data.__dict__)
+        return self
 
     def __str__(self) -> str:
         keys = ["id", "date_arrival", "date_departure", "customer_name",

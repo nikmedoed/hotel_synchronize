@@ -31,8 +31,10 @@ def get_rooms_comparison():
             logging.warning(f'No room in wubook {room["name"]}')
         else:
             roomid_bnovo_to_wubook[room['id']] = wroom
+            roomid_bnovo_to_wubook[str(room['id'])] = wroom
             roomid_bnovo_to_wubook[room['name']] = wroom
             roomid_wubook_to_binovo[wroom.id] = room
+            roomid_wubook_to_binovo[str(wroom.id)] = room
     return roomid_bnovo_to_wubook, roomid_wubook_to_binovo
 
 
@@ -57,8 +59,8 @@ def synchroiteration(roomid_bnovo_to_wubook, roomid_wubook_to_binovo):
 
     # Step 3: Создаём новые записи из остатков
     for book_id, book in wubook_bookings.items():
-        room = roomid_wubook_to_binovo.get(book.rooms)
-        wubook_to_bnovo_new_record(room, book)
+        rooms = book.dayprices and {room: roomid_wubook_to_binovo.get(room) for room in book.dayprices}
+        wubook_to_bnovo_new_record(rooms, book)
 
     for book_id, book in bnovo_bookings.items():
         wub_room = roomid_bnovo_to_wubook.get(book.initial_room_type_name)
@@ -66,7 +68,7 @@ def synchroiteration(roomid_bnovo_to_wubook, roomid_wubook_to_binovo):
 
 
 if __name__ == "__main__":
-    SLEEP_TIME = 60
+    SLEEP_TIME = 10
     # Получаем сопоставления. Для каких номеров нет сопоставлений, пропустим
     roomid_bnovo_to_wubook, roomid_wubook_to_binovo = get_rooms_comparison()
 

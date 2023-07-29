@@ -70,10 +70,10 @@ def update_wubook_copy(wubook: WuBookBooking, original: BnovoPMSBooking,
     rcode = wubook.reservation_code
     try:
         room = rooms_origin_to_copy.get(original.initial_room_type_name)
-        if wubook.date_departure < datetime.datetime.now():
+        if wubook.date_departure and wubook.date_departure < datetime.datetime.now():
             return
 
-        if original.arrival and (
+        if original.arrival and wubook.date_arrival and (
                 (original.arrival.date() >= datetime.datetime.now().date()
                  and
                  original.arrival.date() != wubook.date_arrival.date())
