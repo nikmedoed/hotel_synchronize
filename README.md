@@ -4,5 +4,26 @@
 
 
 Скрипты ориентированы на чтение необходимой информации и управление бронированиями.
-Нет реализации функций для управления данными о номерах и тарифах.
+- Нет реализации функций для управления данными о номерах и тарифах.
+- Есть отдельные скрипты для 
+-- Переноса комнат
+-- Отмены всех броней вубук
+-- Экспорта данных
 
+
+
+Статусы BnovoPMS
+1 - Новое
+2 - Отменено
+3 - Заселен
+4 - Выехал
+5 - Проверено
+6 - На рассмотрении
+
+Статусы Wubook
+1: confirmed
+2: waiting for approval (WooDoo Online Reception only)
+3: refused (WooDoo Online Reception only)
+4: accepted (WooDoo Online Reception only)
+5: cancelled
+6: (probably not used anymore): cancelled with penalty

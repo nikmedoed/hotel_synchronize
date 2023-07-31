@@ -2,7 +2,7 @@ import datetime
 import logging
 
 from utils.loadenv import bnovo_client, DEBUG_RUNNING
-from utils.database import WUBOOK_TAG, synchrobase, key, BNOVO_TAG
+from utils.database import WUBOOK_TAG, synchrobase, key, BNOVO_TAG, wubook_multiroom_feedback
 from utils.bnovo_to_wubook import update_wubook_copy
 from service.bnovo_types import BnovoRoomTypeServices, BnovoRoomTypes, \
     bnovo_date_format, bnovo_dates, BnovoNewBooking, BnovoPMSBooking, BnovoStatuses
@@ -62,7 +62,8 @@ def wubook_to_bnovo(book: WuBookBooking, rooms: dict[str, dict]):
         addon = bnovo_addons.get(name)
         text = f"- {quant} {name}, сум {price}, ежедневно: {'Да' if per else 'Нет'}"
         if not addon:
-            logging.warning(f"Не найдено сопоставление для дополнительной услуги {name}")
+            logging.warning(
+                f"Во время формирования списка услуг для бронирования вубук {book_id} не найдено сопоставление для дополнительной услуги {name}")
             text += " - нет сопоставления"
         else:
             ldp = date_diff
@@ -73,8 +74,13 @@ def wubook_to_bnovo(book: WuBookBooking, rooms: dict[str, dict]):
                 ldp = min(quant, ldp)
                 if addon['max_quantity_enabled']:
                     ldp = min(addon['max_quantity'], ldp)
-                dayprice = price / ldp
-                day_prices = {date: {"count": 1, "price": dayprice} for date in bnovo_dates(arrival, ldp)}
+                dayprice = int(price / ldp)
+                dayprice_tail = round(price % dayprice if dayprice else price, 2)
+                day_prices = {date: {
+                    "count": 1,
+                    "price": dayprice
+                } for date in bnovo_dates(arrival, ldp)}
+                day_prices[next(iter(day_prices))]["price"] += dayprice_tail
             services.append(BnovoRoomTypeServices(
                 i=addon['id'],
                 c=quant,
@@ -86,40 +92,47 @@ def wubook_to_bnovo(book: WuBookBooking, rooms: dict[str, dict]):
     if addons_info:
         addons_info = f"\n\nДополнительные услуги:\n{addons_info}"
 
-    room_types = {}
+    room_types = []
     for wubook_room_id, dayprices in book.dayprices.items():
         dayprices = dayprices[-date_diff:]
         room_id = rooms[wubook_room_id]['id']
+        # room_types[room_id] = ... было, чтобы сразу группу номеров забронить
+        room_types.append({
+            room_id: BnovoRoomTypes(
+                count=1,
+                prices={bnovo_date_format(arrival + datetime.timedelta(days=n)): i for n, i in
+                        enumerate(dayprices)},
+                room_type_services=[{"services": []}]  # количество services == count
+            )
+        })
+    room_types[0][next(iter(room_types[0]))].room_type_services[0]["services"] = services
 
-        room_types[room_id] = BnovoRoomTypes(
-            count=1,
-            prices={bnovo_date_format(arrival + datetime.timedelta(days=n)): i for n, i in
-                    enumerate(dayprices)},
-            room_type_services=[{"services": []}]  # количество services == count
-        )
-    room_types[next(iter(room_types))].room_type_services[0]["services"] = services
-
-    extra = ""
-    new = BnovoNewBooking(
-        plan_id=153650,  # 157122, # Это id тарифа, решили использовать основной
-        warranty_type='other',
-        guarantee_sum=book.payment_gateway_fee or 0,
-        arrival=bnovo_date_format(arrival),
-        departure=bnovo_date_format(departure),
-        name=book.customer_name,
-        surname=book.customer_surname,
-        email=book.customer_mail,
-        phone=book.customer_phone,
-        lang=book.customer_language_iso,
-        comment=(f"{WUBOOK_TAG}: {book_id}\n"
-                 f"Заезд в {book.arrival_hour}\n"
-                 f"Комментарий гостя:\n{book.customer_notes}"
-                 f"{addons_info}"),
-        room_types=room_types,
-        extra=extra
-    )
-    new_bookings = bnovo_client.add_booking(new)
     rnames = [room.get('name') for room in rooms.values()]
+    rooms_info = "" if len(rnames) < 2 else ("\n\nНомера в группе:\n-" + "\n-".join(rnames))
+    extra = ""
+
+    new_bookings = []
+    for room_type in room_types:
+        new = BnovoNewBooking(
+            plan_id=153650,  # 157122, # Это id тарифа, решили использовать основной
+            warranty_type='other',
+            guarantee_sum=book.payment_gateway_fee or 0,
+            arrival=bnovo_date_format(arrival),
+            departure=bnovo_date_format(departure),
+            name=book.customer_name,
+            surname=book.customer_surname,
+            email=book.customer_mail,
+            phone=book.customer_phone,
+            lang=book.customer_language_iso,
+            comment=(f"{WUBOOK_TAG}: {book_id}\n"
+                     f"Заезд в {book.arrival_hour}\n"
+                     f"Комментарий гостя:\n{book.customer_notes}"
+                     f"{addons_info}{rooms_info}"),
+            room_types=room_type,
+            extra=extra
+        )
+        new_bookings.extend(bnovo_client.add_booking(new))
+
     logging.info(
         f"WuBook to Bnovo new copy: {book_id} -> {[n.number for n in new_bookings]} "
         f"– rooms: {rnames}, {book.customer_surname} {book.customer_name} "
@@ -151,7 +164,9 @@ def wubook_to_bnovo_new_record(rooms: dict[str, dict], book: WuBookBooking):
         if new_bookings:
             for n in new_bookings:
                 # В базу сохраняем "обратную связь" через ID, чтобы находить оригинал
+                kk = key(BNOVO_TAG, n.number)
                 synchrobase.set(key(BNOVO_TAG, n.number), book_id)
+                wubook_multiroom_feedback.add(kk, book_id)
     except Exception as e:
         err = e.args[0].get('errors')
         if err and type(err) == list:

@@ -3,7 +3,7 @@ import logging
 from typing import Union
 
 from utils.loadenv import DEBUG_RUNNING
-from utils.database import BNOVO_TAG, WUBOOK_TAG, synchrobase, key
+from utils.database import BNOVO_TAG, WUBOOK_TAG, synchrobase, key, wubook_multiroom_feedback
 from service.bnovo_types import BnovoPMSBooking
 from service.wubook_types import WuBookRoom, WuBookCustomer, WuBookGuests, \
     WuBookBooking, WUBOOK_CANCELLED_STATES
@@ -73,30 +73,46 @@ def update_wubook_copy(wubook: WuBookBooking, original: BnovoPMSBooking,
         if wubook.date_departure and wubook.date_departure < datetime.datetime.now():
             return
 
+        wubook_rooms = wubook.dayprices and {room for room in wubook.dayprices}
+
         if original.arrival and wubook.date_arrival and (
-                (original.arrival.date() >= datetime.datetime.now().date()
-                 and
-                 original.arrival.date() != wubook.date_arrival.date())
+                (
+                        original.arrival.date() >= datetime.datetime.now().date()
+                        and
+                        original.arrival.date() != wubook.date_arrival.date()
+                )
                 or
                 original.departure.date() != wubook.date_departure.date()
                 or
-                (room and room.id != wubook.rooms)
+                (room and str(room.id) not in wubook_rooms)
+                # т.к. к одной брони вубука может относиться несколько биново,
+                # надо проверять по всем номерам, но если поменялась один номер из серии,
+                # придётся пересоздавать бронь вубук заново и для других броней биново
         ):
             if wubook.status not in WUBOOK_CANCELLED_STATES:
                 wubook.cancel(reason='bnovo data update')
-                synchrobase.rem(key(WUBOOK_TAG, rcode))
+                kk = key(WUBOOK_TAG, rcode)
+                if synchrobase.exists(kk):
+                    synchrobase.rem(kk)
+                if len(wubook_rooms) > 1:
+                    wubook_multiroom_feedback.delete(wubook.id)
                 logging.info(f"bnovo {original.id} changed wubook {rcode} cancelled")
             if original.status_id != 2:
                 bnovo_to_wubook_new_record(room, original)
         elif original.status_id in {3, 4, 5}:
             if wubook.status == 2:
-                wubook.confirm(reason='bnovo synchronize')
-                logging.info(f"wubook {rcode} confirmed")
+                try:
+                    wubook.confirm(reason='bnovo synchronize')
+                    logging.info(f"wubook {rcode} confirmed")
+                except Exception as e:
+                    logging.info(f"wubook {rcode} may already confirmed, err: {e}")
             elif wubook.status in WUBOOK_CANCELLED_STATES:
                 wubook.reconfirm(reason='bnovo synchronize')
                 logging.info(f"wubook {rcode} reconfirmed")
         elif original.status_id == 2 and wubook.status in {1, 2, 4}:
             wubook.cancel(reason='bnovo synchronize')
+            if len(wubook_rooms) > 1:
+                wubook_multiroom_feedback.delete(wubook.id)
             logging.info(f"wubook {rcode} cancelled")
     except Exception as e:
         logging.error(f"bnovo {original.id} to wubook {rcode} synchronize error: {e}")

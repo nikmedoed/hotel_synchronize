@@ -378,9 +378,17 @@ unread: Прочитана бронь или нет
 
     @property
     def id_number(self):
+        # От возвращаемого ID зависит групировка бронирований.
+        # Т.е. мы не смогли заводить брони серией, то считаем,
+        # что брони из вубука заводятся отдельными записями.
+        # У нас есть только номер модуля (групповой брони),
+        # поэтому там где его нет, считаем по обычному id,
+        # аналогично, если в группе более одной записи, не смотрим на этот номер.
+        # Наши группы с одной записью.
         if self.extra:
             i = self.extra.get('bnovobook_group_main_booking_number')
-            if i:
+            group = self.extra.get('pms_group_booking_numbers')
+            if i and group and len(group) == 1:
                 return i
         return self.id
 

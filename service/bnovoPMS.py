@@ -16,11 +16,12 @@ def body_update(dictionary, key, value):
         dictionary[key] = value
     return dictionary
 
+
 # Можно добиться, чтобы список параметров сохранялся в классе при инициализации
 # и получить body для функции было проще и быстрее, но лень
 # Или в декоратор это превратить и параметры при создании обсчитывать
-def get_body(func,loc):
-    parameters = set(inspect.signature(func).parameters)- {'self'}
+def get_body(func, loc):
+    parameters = set(inspect.signature(func).parameters) - {'self'}
     body = {name: value for name, value in loc.items() if name in parameters}
     return body
 
@@ -133,7 +134,7 @@ class BnovoPMSapi:
         :param page: Текущая страница
         :param order_by: Поле для сортировки и порядок: create_date.asc - По дате создания по возрастанию (сначала идут старые брони) create_date.desc - По дате создания по убыванию (сначала идут новые брони) arrival_date.asc - По дате заезда по возрастанию arrival_date.desc - По дате заезда по убыванию departure_date.asc - По дате выезда по возрастанию departure_date.desc - По дате выезда по убыванию
         """
-        body =get_body(self.get_bookings, locals())
+        body = get_body(self.get_bookings, locals())
         POINT = "/dashboard"
 
         for i in set(body.keys()):
@@ -152,10 +153,8 @@ class BnovoPMSapi:
             result.extend(re)
         return [BnovoPMSBooking(**b).set_server(self) for b in result]
 
-
-
     def get_rooms(self, with_rooms=0):
-        body =get_body(self.get_rooms, locals())
+        body = get_body(self.get_rooms, locals())
         POINT = "/roomTypes/get"
         response = self._request(POINT, body)
         return response
@@ -168,7 +167,7 @@ class BnovoPMSapi:
                               concierge_checkout=0,
                               is_checkin=0
                               ):
-        body =get_body(self.change_booking_status, locals())
+        body = get_body(self.change_booking_status, locals())
         POINT = "/booking/change_booking_status"
         response = self._request(POINT, body, rtype=RequestType.FORM)
         return response

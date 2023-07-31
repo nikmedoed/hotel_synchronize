@@ -10,10 +10,20 @@ def split_dict(bookings, tag):
     return originals
 
 
-def make_updates(bookings, bookins_original, tag, function, rooms_copy_to_origin):
+def make_updates(bookings, bookins_original: dict, tag, function, rooms_copy_to_origin):
+    # Эта фукнция обновляет копии броней и убирает "проверенные" из словарей.
+    # Из-за необходимости обрабатывать несколько номеров в одной брони из вубука,
+    # удаляем записи отдельным циклом после обработки.
+    # Это позволяет обойти и другую проблему: после удаления связки ключей,
+    # синхронизатор в ближайшую итерацию или сразу создаст копии для оставшихся номеров в вубуке
+    todel = set()
     for book_id, book in bookings.items():
         orig_id = synchrobase.get(key(tag, book_id))
-        orig = bookins_original.pop(orig_id, None)
+        orig = bookins_original.get(orig_id, None)
         if not orig:
             continue
+        todel.add(orig_id)
         function(book, orig, rooms_copy_to_origin)
+    for i in todel:
+        del bookins_original[i]
+
