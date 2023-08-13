@@ -67,7 +67,7 @@ def synchroiteration(roomid_bnovo_to_wubook, roomid_wubook_to_binovo):
         bnovo_to_wubook_new_record(wub_room, book)
 
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     SLEEP_TIME = 180
     # Получаем сопоставления. Для каких номеров нет сопоставлений, пропустим
     roomid_bnovo_to_wubook, roomid_wubook_to_binovo = get_rooms_comparison()
