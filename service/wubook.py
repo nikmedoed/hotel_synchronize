@@ -3,7 +3,11 @@ from .wubook_types import *
 import datetime
 from dataclasses import asdict
 import inspect
-from utils.cache import cache
+from utils.cache import Cache
+import socket
+
+socket.setdefaulttimeout(30)
+cache = Cache(1800)
 
 
 class WuBook:
