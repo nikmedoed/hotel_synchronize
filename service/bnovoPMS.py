@@ -109,7 +109,7 @@ class BnovoPMSapi:
                      ) -> list[BnovoPMSBooking]:
         """
     Метод API позволяет получить бронирования по различным фильтрам.
-        
+
         :param create_from: Начало периода дат создания бронирования (d.m.Y)
         :param create_to: Конец периода дат создания бронирования (d.m.Y)
         :param arrival_from: Начало периода дат заезда (d.m.Y)
@@ -146,9 +146,9 @@ class BnovoPMSapi:
         result = []
         while body['page']:
             response = self._request(POINT, body)
-            body['page'] = response['pages'].get('next_page')
+            body['page'] = response.get('pages', {}).get('next_page')
             re = response.get('bookings')
-            if re == None:
+            if re is None:
                 raise ValueError(response)
             result.extend(re)
         return [BnovoPMSBooking(**b).set_server(self) for b in result]

@@ -56,3 +56,4 @@ elara.db
 .idea/
 
 test.py
+*wubook_req_log.txt

@@ -8,7 +8,7 @@ from utils.actual_bookings import get_actual_wubook_bookings, get_actual_bnovo_b
 bnovo_rooms = bnovo_client.get_roomtypes()
 bnovo_rooms = [v for k, v in bnovo_rooms.items()]
 df = pd.DataFrame(bnovo_rooms)
-df.T.to_excel('bnovo_rooms.xlsx')
+df.to_excel('bnovo_rooms.xlsx')
 
 bnovo_addons = bnovo_client.get_addons()
 df = pd.DataFrame(bnovo_addons)
