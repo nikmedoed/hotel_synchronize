@@ -67,34 +67,42 @@ def synchroiteration(roomid_bnovo_to_wubook, roomid_wubook_to_binovo):
         bnovo_to_wubook_new_record(wub_room, book)
 
 
-if __name__ == "__main__":
-    SLEEP_TIME = 180
-    # Получаем сопоставления. Для каких номеров нет сопоставлений, пропустим
-    roomid_bnovo_to_wubook, roomid_wubook_to_binovo = get_rooms_comparison()
+def safe_execution(func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        mes = str(e)
+        sleep_time = 0
+        if "More than 288" in mes:
+            sleep_time = 300
+        if "in the last 3600 seconds" in mes:
+            sleep_time = 3300
+        if "More than 240" in mes:
+            sleep_time = 600
+        if sleep_time:
+            logging.error(
+                f"Ошибка выполнения функции {func.__name__}, ограничения вубук. Спим {sleep_time / 60:.1f} мин {mes}")
+            sleep(sleep_time)
+        else:
+            logging.error(f"Непредвиденная ошибка в функции {func.__name__}: {mes}")
+            try:
+                logging.error(e.with_traceback())
+            except:
+                print("Не получилось вывести traceback")
+        return None
 
+
+if __name__ == "__main__":
+    SLEEP_TIME = 240
+    # Получаем сопоставления. Для каких номеров нет сопоставлений, пропустим
+    rooms = None
+    while not rooms:
+        rooms = safe_execution(get_rooms_comparison)
+    roomid_bnovo_to_wubook, roomid_wubook_to_binovo = rooms
     while 1:
         logging.info("New synchroiteration start")
         if not DEBUG_RUNNING:
-            try:
-                synchroiteration(roomid_bnovo_to_wubook, roomid_wubook_to_binovo)
-            except Exception as e:
-                mes = str(e)
-                sleep_time = 0
-                if "More than 288" in mes:
-                    sleep_time = 300
-                if "in the last 3600 seconds" in mes:
-                    sleep_time = 3300
-                if sleep_time:
-                    logging.error(f"Синхронизация не получилась, ограничения вубук. "
-                                  f"Спим {sleep_time / 60:.1f} мин {mes}")
-                    sleep(sleep_time)
-                else:
-                    logging.error(f"Непредвиденная ошибка синхронизации {mes}")
-                    try:
-                        logging.error(e.with_traceback())
-                    except:
-                        print("Не получилось вывести traceeback")
-
+            result = safe_execution(synchroiteration, roomid_bnovo_to_wubook, roomid_wubook_to_binovo)
             logging.info(f"iteration end, sleep {SLEEP_TIME} sec")
             sleep(SLEEP_TIME)
         else:

@@ -1,6 +1,6 @@
 elara==0.5.5
-matplotlib==3.5.2
-pandas==1.4.3
-python-dotenv==1.0.0
-requests==2.29.0
-tqdm==4.64.0
+matplotlib==3.7.2
+pandas==2.0.3
+python-dotenv==1.0.1
+Requests==2.31.0
+tqdm==4.65.0

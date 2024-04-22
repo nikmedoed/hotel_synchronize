@@ -109,7 +109,7 @@ def wubook_to_bnovo(book: WuBookBooking, rooms: dict[str, dict]):
 
     rnames = [room.get('name') for room in rooms.values()]
     rooms_info = "" if len(rnames) < 2 else ("\n\nНомера в группе:\n-" + "\n-".join(rnames))
-    extra = ""
+    extra = None
 
     new_bookings = []
     for room_type in room_types:

@@ -40,6 +40,8 @@ def get_actual_wubook_bookings() -> dict[int, WuBookBooking]:
                     t = item and item.get('status') in WUBOOK_CANCELLED_STATES
                     item = WuBookBooking(**item) if t else client.booking(code)[0]
             except Exception as e:
+                if "in the last 3600 seconds" in str(e):
+                    raise e
                 logging.warning(f"wubook: не получилось запросить бронирование {code} "
                                 f"будет пропущено в итерации. Ошибка: {e}")
             if item and (not item.date_departure or item.date_departure >= now):
